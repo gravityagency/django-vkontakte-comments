@@ -35,6 +35,8 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
             if kwargs['after'] and sort == 'asc':
                 raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` attribute")
 
+        kwargs["methods_namespace"] = object.methods_namespace  # TODO: replace to RemoteManager.methods_namespace
+
         # owner_id идентификатор пользователя или сообщества, которому принадлежит фотография.
         # Обратите внимание, идентификатор сообщества в параметре owner_id необходимо указывать со знаком "-" — например, owner_id=-1 соответствует идентификатору сообщества ВКонтакте API (club1)
         # int (числовое значение), по умолчанию идентификатор текущего пользователя
@@ -66,15 +68,11 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
 
 class Comment(VkontakteModel, VkontakteCRUDModel):
 
-    methods_namespace = 'video'
-    #remote_pk_field = 'cid'
     fields_required_for_update = ['comment_id', 'owner_id']
     _commit_remote = False
 
     remote_id = models.CharField(
         u'ID', primary_key=True, max_length=20, help_text=u'Уникальный идентификатор', unique=True)
-
-    #video = models.ForeignKey(Video, verbose_name=u'Видеозапись', related_name='comments')
 
     object_content_type = models.ForeignKey(ContentType, related_name='comments')
     object_id = models.PositiveIntegerField(db_index=True)
@@ -103,8 +101,8 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
     })
 
     class Meta:
-        verbose_name = u'Комментарий видеозаписи Вконтакте'
-        verbose_name_plural = u'Комментарии видеозаписей Вконтакте'
+        verbose_name = u'Комментарий Вконтакте'
+        verbose_name_plural = u'Комментарии Вконтакте'
 
     @property
     def remote_owner_id(self):
