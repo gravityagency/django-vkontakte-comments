@@ -45,8 +45,6 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
         # напр 'video_id', 'photo_id'
         # int (числовое значение), обязательный параметр
         object_remote_field = '%s_id' % object.methods_namespace  # TODO: replace to RemoteManager.methods_namespace
-        print object_remote_field
-        print object.remote_id
         kwargs[object_remote_field] = object.remote_id
 
         # need_likes 1 — будет возвращено дополнительное поле likes. По умолчанию поле likes не возвращается.
@@ -57,7 +55,7 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
         # строка
         kwargs['sort'] = sort
 
-        kwargs['extra_fields'] = {'object_id': object.pk, 'object_content_type': 20}
+        kwargs['extra_fields'] = {'object_id': object.pk, 'object_content_type_id': 20}
 
         return super(CommentRemoteManager, self).fetch(**kwargs)
 
@@ -74,9 +72,9 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 
     #video = models.ForeignKey(Video, verbose_name=u'Видеозапись', related_name='comments')
 
-    #object_content_type = models.ForeignKey(ContentType, related_name='comments')
-    #object_id = models.PositiveIntegerField(db_index=True)
-    object = generic.GenericForeignKey()  # 'object_content_type', 'object_id'
+    object_content_type = models.ForeignKey(ContentType, related_name='comments')
+    object_id = models.PositiveIntegerField(db_index=True)
+    object = generic.GenericForeignKey('object_content_type', 'object_id')  # 'object_content_type', 'object_id'
 
     author_content_type = models.ForeignKey(ContentType, related_name='video_comments')
     author_id = models.PositiveIntegerField(db_index=True)
