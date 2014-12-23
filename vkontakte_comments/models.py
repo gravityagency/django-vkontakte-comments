@@ -55,7 +55,11 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
         # строка
         kwargs['sort'] = sort
 
-        kwargs['extra_fields'] = {'object_id': object.pk, 'object_content_type_id': 20}
+        kwargs['extra_fields'] = {
+            'object_content_type_id': ContentType.objects.get_for_model(object._meta.model).pk,
+            'object_id': object.pk,
+            'object': object,
+        }
 
         return super(CommentRemoteManager, self).fetch(**kwargs)
 
