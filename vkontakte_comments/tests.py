@@ -1,0 +1,208 @@
+# -*- coding: utf-8 -*-
+from django.test import TestCase
+from django.utils import timezone
+import json
+
+import mock
+from vkontakte_groups.factories import GroupFactory
+from vkontakte_video.factories import AlbumFactory, VideoFactory
+from vkontakte_video.models import Album, Video
+from vkontakte_users.factories import UserFactory, User
+
+from . models import Comment
+
+GROUP_ID = 16297716  # https://vk.com/cocacola
+ALBUM_ID = 50850761  # 9 videos
+VIDEO_ID = 166742757  # 12 comments
+
+GROUP_CRUD_ID = 59154616  # https://vk.com/club59154616 # django-vkontakte-wall crud operations
+ALBUM_CRUD_ID = 55964907
+VIDEO_CRUD_ID = 170947024
+#USER_AUTHOR_ID = 201164356
+
+
+class CommentTest(TestCase):
+
+    def setUp(self):
+        self.objects_to_delete = []
+
+    def tearDown(self):
+        for object in self.objects_to_delete:
+            object.delete(commit_remote=True)
+
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+    def test_video_fetch_comments(self, *kwargs):
+
+        owner = GroupFactory(remote_id=GROUP_ID)
+        #album = AlbumFactory(remote_id=ALBUM_ID, owner=owner)
+        # not factory coz we need video.comments_count later
+        video = Video.remote.fetch(owner=owner, ids=[VIDEO_ID])[0]
+
+        comments = video.fetch_comments(count=10, sort='desc')
+        self.assertEqual(len(comments), video.comments.count())
+        self.assertEqual(len(comments), 10)
+
+        # testing `after` parameter
+        after = Comment.objects.order_by('-date')[2].date
+
+        Comment.objects.all().delete()
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = video.fetch_comments(after=after, sort='desc')
+        self.assertEqual(len(comments), Comment.objects.count())
+        self.assertEqual(len(comments), video.comments.count())
+        self.assertEqual(len(comments), 3)
+
+        date = comments[0].date
+        self.assertGreaterEqual(date, after)
+
+        # testing `all` parameter
+        Comment.objects.all().delete()
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = video.fetch_comments(all=True)
+        self.assertEqual(len(comments), Comment.objects.count())
+        self.assertEqual(len(comments), video.comments.count())
+        self.assertEqual(len(comments), video.comments_count)
+        self.assertTrue(video.comments.count() > 10)
+
+    def test_fetch_with_count_and_offset(self):
+        # testing `count` parameter, count is the same as limit
+        owner = GroupFactory(remote_id=GROUP_ID)
+        album = AlbumFactory(remote_id=ALBUM_ID, owner=owner)
+        video = VideoFactory(remote_id=VIDEO_ID, album=album, owner=owner)
+
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = video.fetch_comments(count=5)
+
+        self.assertEqual(len(comments), 5)
+        self.assertEqual(Comment.objects.count(), 5)
+
+        # testing `offset` parameter
+        comments2 = video.fetch_comments(count=2, offset=4)
+
+        self.assertEqual(len(comments2), 2)
+        self.assertEqual(Comment.objects.count(), 6)
+
+        self.assertEqual(comments[4].remote_id, comments2[0].remote_id)
+
+    #@mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+    def test_video_fetch_likes(self, *kwargs):
+
+        owner = GroupFactory(remote_id=GROUP_ID)
+        album = AlbumFactory(remote_id=ALBUM_ID, owner=owner)
+        video = VideoFactory(remote_id=VIDEO_ID, album=album, owner=owner)
+
+        self.assertEqual(video.likes_count, 0)
+        users_initial = User.objects.count()
+
+        users = video.fetch_likes(all=True)
+
+        self.assertTrue(video.likes_count > 0)
+        self.assertEqual(video.likes_count, len(users))
+        self.assertEqual(video.likes_count, User.objects.count() - users_initial)
+        self.assertEqual(video.likes_count, video.like_users.count())
+
+    def test_comment_crud_methods(self):
+        owner = GroupFactory(remote_id=GROUP_CRUD_ID)
+        album = AlbumFactory(remote_id=ALBUM_CRUD_ID, owner=owner)
+        video = VideoFactory(remote_id=VIDEO_CRUD_ID, album=album, owner=owner)
+
+        def assert_local_equal_to_remote(comment):
+            comment_remote = Comment.remote.fetch_by_instance(
+                instance=comment.instance).get(remote_id=comment.remote_id)
+            self.assertEqual(comment_remote.remote_id, comment.remote_id)
+            self.assertEqual(comment_remote.text, comment.text)
+            self.assertEqual(comment_remote.author, comment.author)
+
+        Comment.remote.fetch_by_instance(instance=video)
+        self.assertEqual(Comment.objects.count(), 0)
+
+        # create
+        # print v
+
+        comment = Comment(text='Test comment', instance=video, author=owner, date=timezone.now())
+        comment.save(commit_remote=True)
+        self.objects_to_delete += [comment]
+
+        self.assertEqual(Comment.objects.count(), 1)
+        self.assertEqual(comment.author, owner)
+        self.assertNotEqual(len(comment.remote_id), 0)
+        assert_local_equal_to_remote(comment)
+
+        # create by manager
+        comment = Comment.objects.create(
+            text='Test comment created by manager', instance=video, author=owner, date=timezone.now(), commit_remote=True)
+        self.objects_to_delete += [comment]
+        self.assertEqual(Comment.objects.count(), 2)
+
+        self.assertEqual(Comment.objects.count(), 2)
+        self.assertEqual(comment.author, owner)
+        self.assertNotEqual(len(comment.remote_id), 0)
+        assert_local_equal_to_remote(comment)
+
+        # update
+        comment.text = 'Test comment updated'
+        comment.save(commit_remote=True)
+
+        self.assertEqual(Comment.objects.count(), 2)
+        assert_local_equal_to_remote(comment)
+
+        # delete
+        comment.delete(commit_remote=True)
+
+        self.assertEqual(Comment.objects.count(), 2)
+        self.assertTrue(comment.archived)
+        self.assertEqual(Comment.remote.fetch_by_instance(
+            instance=comment.instance).filter(remote_id=comment.remote_id).count(), 0)
+
+        # restore
+        comment.restore(commit_remote=True)
+        self.assertFalse(comment.archived)
+
+        self.assertEqual(Comment.objects.count(), 2)
+        assert_local_equal_to_remote(comment)
+
+    def test_parse_comment(self):
+
+        response = u'''{"date": 1387304612,
+            "text": "Даёшь \\"Байкал\\"!!!!",
+            "likes": {"count": 0, "can_like": 1, "user_likes": 0},
+            "id": 811,
+            "from_id": 27224390}
+        '''
+
+        owner = GroupFactory(remote_id=GROUP_ID)
+        album = AlbumFactory(remote_id=ALBUM_ID, owner=owner)
+        video = VideoFactory(remote_id=VIDEO_ID, album=album, owner=owner)
+
+        comment = Comment(instance=video)
+        comment.parse(json.loads(response))
+        comment.save()
+
+        self.assertEqual(comment.remote_id, '-%s_811' % GROUP_ID)
+        self.assertEqual(comment.instance, video)
+        self.assertEqual(comment.author.remote_id, 27224390)
+        self.assertEqual(comment.text, u'Даёшь "Байкал"!!!!')
+        self.assertIsNotNone(comment.date)
+
+
+class OtherTests(TestCase):
+
+    def test_fetch_by_user_parameter(self):
+        user = UserFactory(remote_id=13312307)
+        #albums = Album.remote.fetch(owner=user)
+        #album = albums[0]
+        #videos = album.fetch_videos()
+
+        album = AlbumFactory(remote_id=55976289, owner=user)
+        video = VideoFactory(remote_id=165144348, album=album, owner=user)
+
+        # fetch user video comments
+        #video = videos[0]
+        comments = video.fetch_comments()
+        self.assertGreater(len(comments), 0)
+        self.assertEqual(Comment.objects.count(), len(comments))
+        self.assertEqual(comments[0].instance, video)
+        self.assertEqual(comments[0].author, user)
