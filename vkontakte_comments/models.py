@@ -104,6 +104,11 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
         verbose_name = u'Комментарий Вконтакте'
         verbose_name_plural = u'Комментарии Вконтакте'
 
+    def __init__(self, *args, **kwargs):
+        super(Comment, self).__init__(*args, **kwargs)
+        if self.object:
+            self._meta.model.methods_namespace = self.get_methods_namespace()
+
     @property
     def remote_owner_id(self):
         # return self.photo.remote_id.split('_')[0]
@@ -124,17 +129,24 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
     def remote_id_short(self):
         return self.remote_id.split('_')[1]
 
+    def get_methods_namespace(self):
+        return self.object.methods_namespace
+
     def prepare_create_params(self, from_group=False, **kwargs):
         if self.author == self.object.owner and self.author_content_type.model == 'group':
             from_group = True
         kwargs.update({
             'owner_id': self.remote_owner_id,
-            'video_id': self.object.remote_id,  # remote_id_short,
             'message': self.text,
 #            'reply_to_comment': self.reply_for.id if self.reply_for else '',
             'from_group': int(from_group),
             'attachments': kwargs.get('attachments', ''),
         })
+
+        #kwargs["methods_namespace"] = self.get_methods_namespace()
+
+        object_remote_field = '%s_id' % self.get_methods_namespace()
+        kwargs[object_remote_field] = self.object.remote_id  # e.g. 'video_id' or 'photo_id'
         return kwargs
 
     def prepare_update_params(self, **kwargs):
@@ -144,12 +156,14 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
             'message': self.text,
             'attachments': kwargs.get('attachments', ''),
         })
+        #kwargs["methods_namespace"] = self.get_methods_namespace()
         return kwargs
 
     def prepare_delete_params(self):
         return {
             'owner_id': self.remote_owner_id,
-            'comment_id': self.remote_id_short
+            'comment_id': self.remote_id_short,
+            #'methods_namespace': self.get_methods_namespace(),
         }
 
     def parse_remote_id_from_response(self, response):
