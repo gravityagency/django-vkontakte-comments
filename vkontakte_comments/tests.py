@@ -110,19 +110,19 @@ class CommentTest(TestCase):
         video = VideoFactory(remote_id=VIDEO_CRUD_ID, album=album, owner=owner)
 
         def assert_local_equal_to_remote(comment):
-            comment_remote = Comment.remote.fetch_by_instance(
-                instance=comment.instance).get(remote_id=comment.remote_id)
+            comment_remote = Comment.remote.fetch_by_object(
+                object=comment.object).get(remote_id=comment.remote_id)
             self.assertEqual(comment_remote.remote_id, comment.remote_id)
             self.assertEqual(comment_remote.text, comment.text)
             self.assertEqual(comment_remote.author, comment.author)
 
-        Comment.remote.fetch_by_instance(instance=video)
+        Comment.remote.fetch_by_object(object=video)
         self.assertEqual(Comment.objects.count(), 0)
 
         # create
         # print v
 
-        comment = Comment(text='Test comment', instance=video, author=owner, date=timezone.now())
+        comment = Comment(text='Test comment', object=video, author=owner, date=timezone.now())
         comment.save(commit_remote=True)
         self.objects_to_delete += [comment]
 
@@ -133,7 +133,7 @@ class CommentTest(TestCase):
 
         # create by manager
         comment = Comment.objects.create(
-            text='Test comment created by manager', instance=video, author=owner, date=timezone.now(), commit_remote=True)
+            text='Test comment created by manager', object=video, author=owner, date=timezone.now(), commit_remote=True)
         self.objects_to_delete += [comment]
         self.assertEqual(Comment.objects.count(), 2)
 
@@ -154,8 +154,8 @@ class CommentTest(TestCase):
 
         self.assertEqual(Comment.objects.count(), 2)
         self.assertTrue(comment.archived)
-        self.assertEqual(Comment.remote.fetch_by_instance(
-            instance=comment.instance).filter(remote_id=comment.remote_id).count(), 0)
+        self.assertEqual(Comment.remote.fetch_by_object(
+            object=comment.object).filter(remote_id=comment.remote_id).count(), 0)
 
         # restore
         comment.restore(commit_remote=True)
@@ -177,12 +177,12 @@ class CommentTest(TestCase):
         album = AlbumFactory(remote_id=ALBUM_ID, owner=owner)
         video = VideoFactory(remote_id=VIDEO_ID, album=album, owner=owner)
 
-        comment = Comment(instance=video)
+        comment = Comment(object=video)
         comment.parse(json.loads(response))
         comment.save()
 
         self.assertEqual(comment.remote_id, '-%s_811' % GROUP_ID)
-        self.assertEqual(comment.instance, video)
+        self.assertEqual(comment.object, video)
         self.assertEqual(comment.author.remote_id, 27224390)
         self.assertEqual(comment.text, u'Даёшь "Байкал"!!!!')
         self.assertIsNotNone(comment.date)
@@ -204,5 +204,5 @@ class OtherTests(TestCase):
         comments = video.fetch_comments()
         self.assertGreater(len(comments), 0)
         self.assertEqual(Comment.objects.count(), len(comments))
-        self.assertEqual(comments[0].instance, video)
+        self.assertEqual(comments[0].object, video)
         self.assertEqual(comments[0].author, user)

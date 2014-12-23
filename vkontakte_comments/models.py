@@ -27,7 +27,7 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
 
     @transaction.commit_on_success
     @fetch_all(default_count=100)
-    def fetch_by_instance(self, instance, sort='asc', need_likes=True, **kwargs):
+    def fetch_by_object(self, object, sort='asc', need_likes=True, **kwargs):
         if sort not in ['asc', 'desc']:
             raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
 
@@ -39,15 +39,15 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
         # Обратите внимание, идентификатор сообщества в параметре owner_id необходимо указывать со знаком "-" — например, owner_id=-1 соответствует идентификатору сообщества ВКонтакте API (club1)
         # int (числовое значение), по умолчанию идентификатор текущего пользователя
 
-        kwargs['owner_id'] = instance.remote_owner_id
+        kwargs['owner_id'] = object.remote_owner_id
 
         # идентификатор объекта к которому оставлен комментарий.
         # напр 'video_id', 'photo_id'
         # int (числовое значение), обязательный параметр
-        object_remote_field = '%s_id' % instance.methods_namespace  # TODO: replace to RemoteManager.methods_namespace
+        object_remote_field = '%s_id' % object.methods_namespace  # TODO: replace to RemoteManager.methods_namespace
         print object_remote_field
-        print instance.remote_id
-        kwargs[object_remote_field] = instance.remote_id
+        print object.remote_id
+        kwargs[object_remote_field] = object.remote_id
 
         # need_likes 1 — будет возвращено дополнительное поле likes. По умолчанию поле likes не возвращается.
         # флаг, может принимать значения 1 или 0
@@ -57,7 +57,7 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
         # строка
         kwargs['sort'] = sort
 
-        kwargs['extra_fields'] = {'instance_id': instance.pk, 'instance_content_type': 20}
+        kwargs['extra_fields'] = {'object_id': object.pk, 'object_content_type': 20}
 
         return super(CommentRemoteManager, self).fetch(**kwargs)
 
@@ -74,9 +74,9 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 
     #video = models.ForeignKey(Video, verbose_name=u'Видеозапись', related_name='comments')
 
-    instance_content_type = models.ForeignKey(ContentType, related_name='comments')
-    instance_id = models.PositiveIntegerField(db_index=True)
-    instance = generic.GenericForeignKey('instance_content_type', 'instance_id')
+    #object_content_type = models.ForeignKey(ContentType, related_name='comments')
+    #object_id = models.PositiveIntegerField(db_index=True)
+    object = generic.GenericForeignKey()  # 'object_content_type', 'object_id'
 
     author_content_type = models.ForeignKey(ContentType, related_name='video_comments')
     author_id = models.PositiveIntegerField(db_index=True)
@@ -108,10 +108,10 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
     def remote_owner_id(self):
         # return self.photo.remote_id.split('_')[0]
 
-        if self.instance.owner_content_type.model == 'user':
-            return self.instance.owner_id
+        if self.object.owner_content_type.model == 'user':
+            return self.object.owner_id
         else:
-            return -1 * self.instance.owner_id
+            return -1 * self.object.owner_id
 
         '''
         if self.author_content_type.model == 'user':
@@ -125,11 +125,11 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
         return self.remote_id.split('_')[1]
 
     def prepare_create_params(self, from_group=False, **kwargs):
-        if self.author == self.instance.owner and self.author_content_type.model == 'group':
+        if self.author == self.object.owner and self.author_content_type.model == 'group':
             from_group = True
         kwargs.update({
             'owner_id': self.remote_owner_id,
-            'video_id': self.instance.remote_id,  # remote_id_short,
+            'video_id': self.object.remote_id,  # remote_id_short,
             'message': self.text,
 #            'reply_to_comment': self.reply_for.id if self.reply_for else '',
             'from_group': int(from_group),
@@ -170,7 +170,7 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
     def parse(self, response):
         # undocummented feature of API. if from_id == 101 -> comment by group
         if response['from_id'] == 101:
-            self.author = self.instance.owner
+            self.author = self.object.owner
         else:
             self.author = self.get_or_create_group_or_user(response.pop('from_id'))[0]
 
