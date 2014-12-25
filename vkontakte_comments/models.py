@@ -41,7 +41,7 @@ class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
         # Обратите внимание, идентификатор сообщества в параметре owner_id необходимо указывать со знаком "-" — например, owner_id=-1 соответствует идентификатору сообщества ВКонтакте API (club1)
         # int (числовое значение), по умолчанию идентификатор текущего пользователя
 
-        kwargs['owner_id'] = object.remote_owner_id
+        kwargs['owner_id'] = object.owner_remote_id
 
         # идентификатор объекта к которому оставлен комментарий.
         # напр 'video_id', 'photo_id'
@@ -111,7 +111,7 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
             self._meta.model.methods_namespace = self.get_methods_namespace()
 
     @property
-    def remote_owner_id(self):
+    def owner_remote_id(self):
         # return self.photo.remote_id.split('_')[0]
 
         if self.object.owner_content_type.model == 'user':
@@ -137,7 +137,7 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
         if self.author == self.object.owner and self.author_content_type.model == 'group':
             from_group = True
         kwargs.update({
-            'owner_id': self.remote_owner_id,
+            'owner_id': self.owner_remote_id,
             'message': self.text,
 #            'reply_to_comment': self.reply_for.id if self.reply_for else '',
             'from_group': int(from_group),
@@ -152,7 +152,7 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 
     def prepare_update_params(self, **kwargs):
         kwargs.update({
-            'owner_id': self.remote_owner_id,
+            'owner_id': self.owner_remote_id,
             'comment_id': self.remote_id_short,
             'message': self.text,
             'attachments': kwargs.get('attachments', ''),
@@ -162,14 +162,14 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 
     def prepare_delete_params(self):
         return {
-            'owner_id': self.remote_owner_id,
+            'owner_id': self.owner_remote_id,
             'comment_id': self.remote_id_short,
             #'methods_namespace': self.get_methods_namespace(),
         }
 
     def parse_remote_id_from_response(self, response):
         if response:
-            return '%s_%s' % (self.remote_owner_id, response)
+            return '%s_%s' % (self.owner_remote_id, response)
         return None
 
     def get_or_create_group_or_user(self, remote_id):
@@ -203,4 +203,4 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
             self.object = self.__dict__['object']  # TODO: check is it should be already saved or not
 
         if '_' not in str(self.remote_id):
-            self.remote_id = '%s_%s' % (self.remote_owner_id, self.remote_id)
+            self.remote_id = '%s_%s' % (self.owner_remote_id, self.remote_id)
