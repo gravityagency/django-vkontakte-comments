@@ -114,6 +114,10 @@ class Comment(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Vkon
         verbose_name = u'Комментарий Вконтакте'
         verbose_name_plural = u'Комментарии Вконтакте'
 
+    @property
+    def slug_prefix(self):
+        return get_methods_namespace(self.object)
+
     def prepare_create_params(self, from_group=False, **kwargs):
         if self.author == self.object.owner and self.author_content_type.model == 'group':
             from_group = True
