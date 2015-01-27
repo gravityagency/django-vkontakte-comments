@@ -32,7 +32,11 @@ class CommentableModelMixin(models.Model):
 
     @transaction.commit_on_success
     def fetch_comments(self, *args, **kwargs):
-        return Comment.remote.fetch_by_object(object=self, *args, **kwargs)
+        comments = Comment.remote.fetch_by_object(object=self, *args, **kwargs)
+        if comments.count() > self.comments_count:
+            self.comments_count = comments.count()
+            self.save()
+        return comments
 
     @property
     def comments_remote_related_name(self):
