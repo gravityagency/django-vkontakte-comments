@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import logging
-import re
 
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
@@ -8,7 +7,8 @@ from django.db import models, transaction
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
 from vkontakte_api.decorators import fetch_all
-from vkontakte_api.mixins import CountOffsetManagerMixin, AfterBeforeManagerMixin, OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin
+from vkontakte_api.mixins import CountOffsetManagerMixin, AfterBeforeManagerMixin, OwnerableModelMixin, \
+    AuthorableModelMixin, LikableModelMixin, get_or_create_group_or_user
 from vkontakte_api.models import VkontakteIDStrModel, VkontakteCRUDModel, VkontakteCRUDManager
 from vkontakte_users.models import User
 
@@ -165,26 +165,12 @@ class Comment(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Vkon
             raise ValueError('No comment ID found in response: %s' % response)
         return '%s_%s' % (self.object.owner_remote_id, id)
 
-    def get_or_create_group_or_user(self, remote_id):
-        # TODO: refactor this method, may be put it to AuthorableMixin
-        from vkontakte_groups.models import Group
-        from vkontakte_users.models import User
-
-        if remote_id > 0:
-            Model = User
-        elif remote_id < 0:
-            Model = Group
-        else:
-            raise ValueError("remote_id shouldn't be equal to 0")
-
-        return Model.objects.get_or_create(remote_id=abs(remote_id))
-
     def parse(self, response):
         # undocummented feature of API. if from_id == 101 -> comment by group
         if response['from_id'] == 101:
             self.author = self.object.owner
         else:
-            self.author = self.get_or_create_group_or_user(response.pop('from_id'))[0]
+            self.author = get_or_create_group_or_user(response.pop('from_id'))
 
         # TODO: add parsing attachments and polls
         if 'attachments' in response:
