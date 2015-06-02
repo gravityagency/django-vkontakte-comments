@@ -2,8 +2,8 @@
 import logging
 
 from django.contrib.contenttypes import generic
-from django.contrib.contenttypes.models import ContentType
-from django.db import models, transaction
+from django.db import models
+from vkontakte_api.decorators import atomic
 
 from .models import Comment
 
@@ -30,7 +30,7 @@ class CommentableModelMixin(models.Model):
                 response['comments_count'] = value['count']
         super(CommentableModelMixin, self).parse(response)
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_comments(self, *args, **kwargs):
         comments = Comment.remote.fetch_by_object(object=self, *args, **kwargs)
         if comments.count() > self.comments_count:
