@@ -3,6 +3,7 @@ INSTALLED_APPS = (
     'taggit',
     'vkontakte_api',
     'vkontakte_users',
+    'vkontakte_places',
     'vkontakte_video',
     'vkontakte_wall',
     'm2m_history',
