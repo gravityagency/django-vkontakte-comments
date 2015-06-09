@@ -19,6 +19,8 @@ install:
   - pip install coveralls
   - pip install mock
   - pip install . --process-dependency-links
+  - pip install django-vkontakte-wall
+  - pip install django-vkontakte-video
 script:
   - django-admin.py --version
   - coverage run --source=vkontakte_comments quicktest.py vkontakte_comments
