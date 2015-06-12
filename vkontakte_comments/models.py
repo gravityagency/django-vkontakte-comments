@@ -173,9 +173,7 @@ class Comment(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Vkon
         else:
             self.author = get_or_create_group_or_user(response.pop('from_id'))
 
-        # TODO: add parsing attachments and polls
-        if 'attachments' in response:
-            response['attachments'] = response.pop('attachments')
+        # TODO: May be this field does not exists in late versions of API
         if 'poll' in response:
             response.pop('poll')
 
