@@ -93,6 +93,7 @@ class Comment(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Vkon
     # attachments - присутствует только если у сообщения есть прикрепления,
     # содержит массив объектов (фотографии, ссылки и т.п.). Более подробная
     # информация представлена на странице Описание поля attachments
+    attachments = models.TextField(u'Вложения')
 
     reply_for_content_type = models.ForeignKey(ContentType, null=True, related_name='replies')
     reply_for_id = models.BigIntegerField(null=True, db_index=True)
@@ -174,7 +175,7 @@ class Comment(OwnerableModelMixin, AuthorableModelMixin, LikableModelMixin, Vkon
 
         # TODO: add parsing attachments and polls
         if 'attachments' in response:
-            response.pop('attachments')
+            response['attachments'] = response.pop('attachments')
         if 'poll' in response:
             response.pop('poll')
 
