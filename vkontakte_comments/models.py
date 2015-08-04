@@ -3,10 +3,10 @@ import logging
 
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
-from django.db import models, transaction
+from django.db import models
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
-from vkontakte_api.decorators import fetch_all
+from vkontakte_api.decorators import fetch_all, atomic
 from vkontakte_api.mixins import CountOffsetManagerMixin, AfterBeforeManagerMixin, OwnerableModelMixin, \
     AuthorableModelMixin, LikableModelMixin, get_or_create_group_or_user
 from vkontakte_api.models import VkontakteIDStrModel, VkontakteCRUDModel, VkontakteCRUDManager
@@ -30,12 +30,12 @@ def get_methods_namespace(object):
 
 class CommentRemoteManager(CountOffsetManagerMixin, AfterBeforeManagerMixin):
 
-    @transaction.commit_on_success
+    @atomic
     @fetch_all(default_count=100)
     def fetch_album(self, album, sort='asc', need_likes=True, **kwargs):
         raise NotImplementedError
 
-    @transaction.commit_on_success
+    @atomic
     @fetch_all(default_count=100)
     def fetch_by_object(self, object, sort='asc', need_likes=True, **kwargs):
         if sort not in ['asc', 'desc']:
