@@ -13,7 +13,7 @@ log = logging.getLogger('vkontakte_comments')
 
 class CommentableModelMixin(models.Model):
 
-    comments = generic.GenericRelation(Comment, related_name='%(class)ss', verbose_name='Comments',
+    comments = generic.GenericRelation(Comment, related_query_name='%(class)ss', verbose_name='Comments',
                                        content_type_field='object_content_type', object_id_field='object_id')
     comments_count = models.PositiveIntegerField('Comments', null=True,
                                                  help_text='The number of comments of this item')
