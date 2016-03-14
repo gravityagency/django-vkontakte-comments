@@ -2,13 +2,13 @@
 import json
 
 from django.conf import settings
-from django.test import TestCase
 from django.utils import timezone
 import mock
 from vkontakte_groups.factories import GroupFactory
 from vkontakte_users.factories import UserFactory, User
 from vkontakte_video.factories import AlbumFactory, VideoFactory, Album, Video
 from vkontakte_wall.factories import PostFactory
+from vkontakte_api.tests import VkontakteApiTestCase
 
 from . models import Comment
 
@@ -25,7 +25,7 @@ POST_CRUD_ID = '-59154616_366'
 USER_AUTHOR_ID = 201164356
 
 
-class VkontakteCommentsTest(TestCase):
+class VkontakteCommentsTest(VkontakteApiTestCase):
 
     def setUp(self):
         self.objects_to_delete = []
