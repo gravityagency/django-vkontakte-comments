@@ -5,7 +5,8 @@ from django.conf import settings
 from django.utils import timezone
 import mock
 from vkontakte_groups.factories import GroupFactory
-from vkontakte_users.factories import UserFactory, User
+from vkontakte_users.factories import UserFactory
+from vkontakte_users.tests import user_fetch_mock
 from vkontakte_video.factories import AlbumFactory, VideoFactory, Album, Video
 from vkontakte_wall.factories import PostFactory
 from vkontakte_api.tests import VkontakteApiTestCase
@@ -19,15 +20,14 @@ VIDEO_ID = 166742757  # 12 comments
 GROUP_CRUD_ID = 59154616  # https://vk.com/club59154616 # django-vkontakte-wall crud operations
 ALBUM_CRUD_ID = 55964907
 VIDEO_CRUD_ID = 170947024
-#USER_AUTHOR_ID = 201164356
 
 POST_CRUD_ID = '-59154616_366'
-USER_AUTHOR_ID = 201164356
 
 
 class VkontakteCommentsTest(VkontakteApiTestCase):
 
     def setUp(self):
+        super(VkontakteCommentsTest, self).setUp()
         self.objects_to_delete = []
 
     def tearDown(self):
@@ -51,7 +51,7 @@ class VkontakteCommentsTest(VkontakteApiTestCase):
 
     if 'vkontakte_video' in settings.INSTALLED_APPS:
 
-        @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+        @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=user_fetch_mock)
         def test_video_fetch_comments(self, *kwargs):
 
             owner = GroupFactory(remote_id=GROUP_ID)
@@ -197,7 +197,7 @@ class VkontakteCommentsTest(VkontakteApiTestCase):
         def test_comment_wall_crud_methods(self):
             group = GroupFactory(remote_id=GROUP_CRUD_ID)
             post = PostFactory(remote_id=POST_CRUD_ID, text='', owner=group)
-            user = UserFactory(remote_id=USER_AUTHOR_ID)
+            user = UserFactory(remote_id=self.token_user_id)
 
             self.assertNoCommentsForObject(post)
 
